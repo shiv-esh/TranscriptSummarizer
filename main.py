@@ -4,9 +4,13 @@ import moviepy.editor as mp
 import subprocess
 import speech_recognition as sr 
 import os
+import sys
 import numpy as np
 import pandas as pd
 import nltk
+sys.path.append('ffmpeg')
+sys.path.append('ffplay')
+sys.path.append('ffprobe')
 nltk.download('punkt') # one time execution
 nltk.download('stopwords')
 import re 
