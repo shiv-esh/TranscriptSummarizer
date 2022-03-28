@@ -91,7 +91,7 @@ async def root(file: UploadFile = File(...)):
     f1=open("Transcript.txt","w+")
     f1.write(full_text)
     full_text
-    text_lst=full_text.split(".")
+'''    text_lst=full_text.split(".")
     sentences = []
     for s in text_lst:
         sentences.append(sent_tokenize(s))
@@ -201,13 +201,13 @@ async def root(file: UploadFile = File(...)):
 
 
 
-
+'''
 
 
 
 
     
-    return {"file_name":sumy}
+    return {"file_name":full_text}
 
 
 if __name__=='__main__':
