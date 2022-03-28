@@ -11,8 +11,8 @@ import nltk
 sys.path.append('ffmpeg')
 sys.path.append('ffplay')
 sys.path.append('ffprobe')
-#nltk.download('punkt') # one time execution
-#nltk.download('stopwords')
+nltk.download('punkt') # one time execution
+nltk.download('stopwords')
 import re 
 from nltk.tokenize import sent_tokenize
 from os import path
