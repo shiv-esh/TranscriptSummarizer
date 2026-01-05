@@ -1,0 +1,103 @@
+body,
+html {
+    width: 100%;
+    height: 100%;
+}
+
+body{
+    padding-top:100px;
+}
+
+body,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: "Lato","Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-weight: 700;
+}
+
+#content{
+    min-height: 600px;
+}
+
+
+
+
+#login-panel .panel-footer{
+    font-weight:normal;
+}
+
+footer {
+    padding: 10px 0;
+    background-color:rgb(44, 44, 151);
+    color:#9d9d9d;
+    bottom: 0;
+    width: 100%;
+}
+
+.red{
+    color:red;
+}
+
+#settings-container{
+    margin-bottom:10px;
+}
+
+.navbar-brand{
+    font-size:20px;
+}
+
+@media(max-width:768px) {
+    #banner_content {
+        padding-bottom: 15%;
+    }
+    footer{
+        text-align:left;
+    }
+}
+
+.remove_item_link{
+    color:#0000ff;
+}
+    ::selection{
+      color:#fff;
+      background: #6990F2;
+    }
+    .wrapper{
+      width: 530px;
+      background: #fff;
+      border-radius: 5px;
+      padding: 30px;
+      box-shadow: 7px 7px 12px rgba(0,0,0,0.05);
+    }
+    .wrapper header{
+      color: #6990F2;
+      font-size: 27px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .wrapper form{
+      height: 200px;
+      display: flex;
+      cursor: pointer;
+      margin: 30px 0;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      border-radius: 10px;
+      border: 4px dashed #6990F2;
+    }
+    form :where(i, p){
+      color: #6990F2;
+    }
+    form i{
+      font-size: 50px;
+    }
+    form p{
+      margin-top: 15px;
+      font-size: 16px;
+    }
+   
