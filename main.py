@@ -1,35 +1,25 @@
-import uvicorn
+import os
+from app import app
+import urllib.request
+from flask import Flask, flash, request, redirect, url_for, render_template
+from werkzeug.utils import secure_filename
 import shutil
 import moviepy.editor as mp
 import subprocess
 import speech_recognition as sr 
-import os
-import sys
+from pydub import AudioSegment
+from pydub.silence import split_on_silence
+import time
+
 import numpy as np
 import pandas as pd
 import nltk
-sys.path.append('ffmpeg')
-sys.path.append('ffplay')
-sys.path.append('ffprobe')
 nltk.download('punkt') # one time execution
 nltk.download('stopwords')
 import re 
 from nltk.tokenize import sent_tokenize
-from os import path
-from pydub import AudioSegment
-from pydub.silence import split_on_silence
-#from transformers import pipeline
-from fastapi import FastAPI,File,UploadFile
-app=FastAPI()
 r = sr.Recognizer()
-summary_text="Harshit is a Gandu"
-async def model(file):
-    summary_text="L"
-    clip =await mp.VideoFileClip(file)
-    summary_text="Lo"
-    await clip.audio.write_audiofile(r"AIaudio.mp3")
-    summary_text="Lod"
-
+app.static_folder = 'static'
 async def get_large_audio_transcription(path):
    
    
@@ -66,149 +56,179 @@ async def get_large_audio_transcription(path):
                 whole_text += text
     # return the text for all chunks detected
     return whole_text
-@app.get('/')
-def index():
-    return{"message":"Hello,Stranger"};
-@app.get('/Welcome')
-def get_name(name: str):
-    return {'Welcome ':f'{name}'};
-@app.get('/{name}')
-def get_name2(name: str):
-    return {'Welcome ':f'{name}'};
-@app.post("/file")
-async def root(file: UploadFile = File(...)):
-    summary_text="L"
-    with open(f'{file.filename}','wb') as buffer:
+
+@app.route('/')
+def upload_form():
+    return render_template('index.html')
+
+@app.route('/', methods=['POST'])
+async def upload_video():
+    if 'file' not in request.files:
+        flash('No file part')
+        return redirect(request.url)
+    file = request.files['file']
+    if file.filename == '':
+        flash('No file selected for uploading')
+        return redirect(request.url)
+    else:
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        #print('upload_video filename: ' + filename)
+        transc=await modelCall(file)
+        ftext=transc[0]
+        summary=transc[1]
+        flash('Video successfully uploaded and displayed below')
+        
+        return render_template('index.html', filename=filename,ftext=ftext,summary=summary)
+
+@app.route('/display/<filename>')
+async def display_video(filename):
+    #print('display_video filename: ' + filename)
+    return redirect(url_for('static', filename='uploads/' + filename), code=301)
+
+async def modelCall(file):
+    ftxt="static/uploads/"+file.filename
+    full_path = os.path.join(os.getcwd(), ftxt)
+    time.sleep(5)
+    with open(f'{"static/uploads/"+file.filename}','rb') as buffer:
         shutil.copyfileobj(file.file,buffer)
-    clip = mp.VideoFileClip(file.filename)
-    clip.audio.write_audiofile(r"AIaudio.mp3")
-    # with open("AIaudio.mp3",'wb') as buffer:
-    #     shutil.copyfileobj('AIaudio.mp3',buffer)
-    sound = AudioSegment.from_mp3(r'AIaudio.mp3')
-    sound.export("result.wav", format="wav")
-    full_text=await get_large_audio_transcription("result.wav")
+        
+   
+    clip = mp.VideoFileClip(full_path)
+    audio_path = os.path.join(os.getcwd(), 'static', 'uploads', 'audio.mp3')
+    clip.audio.write_audiofile(audio_path)
+    '''with open(r"static/files/AIaudio.mp3",'rb') as buffer:
+        shutil.copyfileobj(r'static/uploads/AIaudio.mp3',buffer)'''
+    time.sleep(10)
+    # file_path = os.path.join(os.getcwd(), 'static', 'uploads', 'audio.mp3')
+    sound = AudioSegment.from_mp3(audio_path)
+    sound.export("static/uploads/result.wav", format="wav")
+    full_text=await get_large_audio_transcription("static/uploads/result.wav")
+    f1=open("Transcript.txt","w+")
+    f1.write(full_text)
+    full_text
+    text_lst=full_text.split(".")
+    sentences = []
+    for s in text_lst:
+        sentences.append(sent_tokenize(s))
+    sentences = [y for x in sentences for y in x]
+    word_embeddings = {}
+    f = open('glove.6B.100d.txt', encoding='utf-8')
+    for line in f:
+        values = line.split()
+        word = values[0]
+        coefs = np.asarray(values[1:], dtype='float32')
+        word_embeddings[word] = coefs
+    f.close()
+
+
+    # In[68]:
+
+
+    clean_sentences = pd.Series(sentences).str.replace("[^a-zA-Z]", " ",regex=True)
+
+    # make alphabets lowercase
+    clean_sentences = [s.lower() for s in clean_sentences]
+
+
+    # In[69]:
+
+
+    from nltk.corpus import stopwords
+
+
+    # In[70]:
+
+
+    stop_words = stopwords.words('english')
+    def remove_stopwords(sen):
+        sen_new = " ".join([i for i in sen if i not in stop_words])
+        return sen_new
+    clean_sentences = [remove_stopwords(r.split()) for r in clean_sentences]
+    clean_sentences
+
+
+    # In[71]:
+
+
+    sentence_vectors = []
+    for i in clean_sentences:
+        if (len(i) != 0):
+            v = sum([word_embeddings.get(w, np.zeros((100,))) for w in i.split()])/(len(i.split())+0.001)
+        else:
+            v = np.zeros((100,))
+        sentence_vectors.append(v)
+    sentence_vectors
+
+
+    # In[72]:
+
+
+    # similarity matrix
+    sim_mat = np.zeros([len(sentences), len(sentences)])
+    sim_mat
+
+
+    # In[73]:
+
+
+    from sklearn.metrics.pairwise import cosine_similarity
+
+
+    # In[74]:
+
+
+    for i in range(len(sentences)):
+        for j in range(len(sentences)):
+            if i != j:
+                sim_mat[i][j] = cosine_similarity(sentence_vectors[i].reshape(1,100), sentence_vectors[j].reshape(1,100))[0,0]
+
+
+    # In[75]:
+
+
+    sim_mat
+
+
+    # In[76]:
+
+
+    import networkx as nx
+
+    nx_graph = nx.from_numpy_array(sim_mat)
+    scores = nx.pagerank(nx_graph)
+
+
+    # In[77]:
+
+
+    ranked_sentences = sorted(((scores[i],s) for i,s in enumerate(sentences)), reverse=True)
+
+
+    # In[78]:
+
+    sumy=""
+    for i in range(len(text_lst)//2):
+        sumy=sumy+ranked_sentences[i][1]+"."
+        print(ranked_sentences[i][1])
+
+
+    # In[ ]:
+
+
+
+
+
+
+
+
     
-#     f1=open("Transcript.txt","w+")
-#     f1.write(full_text)
-#     full_text
-#     text_lst=full_text.split(".")
-#     sentences = []
-#     for s in text_lst:
-#         sentences.append(sent_tokenize(s))
-#     sentences = [y for x in sentences for y in x]
-#     word_embeddings = {}
-#     f = open('glove.6B.100d.txt', encoding='utf-8')
-#     for line in f:
-#         values = line.split()
-#         word = values[0]
-#         coefs = np.asarray(values[1:], dtype='float32')
-#         word_embeddings[word] = coefs
-#     f.close()
+    return [full_text,sumy]
 
-
-#     # In[68]:
-
-
-#     clean_sentences = pd.Series(sentences).str.replace("[^a-zA-Z]", " ",regex=True)
-
-#     # make alphabets lowercase
-#     clean_sentences = [s.lower() for s in clean_sentences]
-
-
-#     # In[69]:
-
-
-#     from nltk.corpus import stopwords
-
-
-#     # In[70]:
-
-
-#     stop_words = stopwords.words('english')
-#     def remove_stopwords(sen):
-#         sen_new = " ".join([i for i in sen if i not in stop_words])
-#         return sen_new
-#     clean_sentences = [remove_stopwords(r.split()) for r in clean_sentences]
-#     clean_sentences
-
-
-#     # In[71]:
-
-
-#     sentence_vectors = []
-#     for i in clean_sentences:
-#         if (len(i) != 0):
-#             v = sum([word_embeddings.get(w, np.zeros((100,))) for w in i.split()])/(len(i.split())+0.001)
-#         else:
-#             v = np.zeros((100,))
-#         sentence_vectors.append(v)
-#     sentence_vectors
-
-
-#     # In[72]:
-
-
-#     # similarity matrix
-#     sim_mat = np.zeros([len(sentences), len(sentences)])
-#     sim_mat
-
-
-#     # In[73]:
-
-
-#     from sklearn.metrics.pairwise import cosine_similarity
-
-
-#     # In[74]:
-
-
-#     for i in range(len(sentences)):
-#         for j in range(len(sentences)):
-#             if i != j:
-#                 sim_mat[i][j] = cosine_similarity(sentence_vectors[i].reshape(1,100), sentence_vectors[j].reshape(1,100))[0,0]
-
-
-#     # In[75]:
-
-
-#     sim_mat
-
-
-#     # In[76]:
-
-
-#     import networkx as nx
-
-#     nx_graph = nx.from_numpy_array(sim_mat)
-#     scores = nx.pagerank(nx_graph)
-
-
-#     # In[77]:
-
-
-#     ranked_sentences = sorted(((scores[i],s) for i,s in enumerate(sentences)), reverse=True)
-
-
-#     # In[78]:
-
-#     sumy=""
-#     for i in range(10):
-#         sumy+=ranked_sentences[i][1]
-#         print(ranked_sentences[i][1])
-
-
-#     # In[ ]:
-
-
-
-
-
-    return(full_text)
 
     
-#     return {"file_name":sumy}
+    
 
 
-if __name__=='__main__':
-    uvicorn.run(app,host='127.0.0.1',port=8000)
-#uvicorn main:app --reload
+if __name__ == "__main__":
+    app.run()
